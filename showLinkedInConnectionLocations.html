@@ -50,7 +50,7 @@ api_key:77evzvvs49kyz3
 					position: results[0].geometry.location
 				});
 			} else {
-				document.getElementById('notifications').innerHTML = "Geocode was not successful for the following reason: " + status;
+				document.getElementById('notifications').innerHTML = "Unable to map the given address: " + address + "  Error: " + status;
 			}
 		});
 }
@@ -65,9 +65,11 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 		IN.Event.on(IN, "auth", onLinkedInAuth);
 	}
 
-	// Event Handler for success login of the LinkedIn API 
+	// Event Handler for successful login of the LinkedIn API 
 	function onLinkedInAuth() {
-		IN.API.Profile("me").result(displayProfiles);
+		IN.API.Profile("me")
+			.result(displayProfiles)
+			.error(displayConnectionErrors);
 		IN.API.Connections("me")
 			.fields("positions:(company)")
 			.result(searchForCompanyByConnection)
@@ -104,7 +106,9 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 		var companyIDString = companyIDs.toString();
 		var searchString = "companies::(" + companyIDString + "):(locations:(address:(street1,city,state)))";
 		
-		IN.API.Raw(searchString).result(displayCompanyLocations);
+		IN.API.Raw(searchString)
+			.result(displayCompanyLocations)
+			.error(displayConnectionErrors);
 	}
 
 	// Builds an address string and sends to Geocoder to map.
