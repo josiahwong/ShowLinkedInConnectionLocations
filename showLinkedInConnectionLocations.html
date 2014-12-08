@@ -23,8 +23,14 @@ api_key:77evzvvs49kyz3
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp"></script>
 <script>
+	// Holds the object that connects to the Google API.
 	var geocoder;
+	// Holds the Google map object.
 	var map;
+	// Limits the connection search to this value.
+	var searchLimit = 50;
+	// Holds the map markers after it has been placed.
+	var mapMarkers = [];
 
 	// Creates the Geocoder object which takes in an address and 
 	//	translates it to coordinates.
@@ -49,6 +55,7 @@ api_key:77evzvvs49kyz3
 					map: map,
 					position: results[0].geometry.location
 				});
+				mapMarkers.push(marker);
 			} else {
 				document.getElementById('notifications').innerHTML = "Unable to map the given address: " + address + "  Error: " + status;
 			}
@@ -72,6 +79,7 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 			.error(displayConnectionErrors);
 		IN.API.Connections("me")
 			.fields("positions:(company)")
+			.params({"count":searchLimit})
 			.result(searchForCompanyByConnection)
 			.error(displayConnectionErrors);
 	}
@@ -115,7 +123,7 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 	function displayCompanyLocations(companyLocations) {
 		for (var companyLocation in companyLocations.values) {
 			var locationValues = companyLocations.values[companyLocation].locations;
-			if (locationValues._total < 1) {
+			if (locationValues == null || locationValues._total < 1) {
 				continue;
 			}
 
@@ -126,8 +134,34 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 		}
 	}
 
-	function displayConnectionErrors(error) {
-		document.getElementById("notifications").innerHTML = "Unable to make a Linkedin connection. Error: " + error;
+        function displayConnectionErrors(error) {
+                document.getElementById("notifications").innerHTML = "Unable to make a Linkedin connection. Error: " + error;
+        }
+
+	// Resets the map and initializes another search
+	// with a new limit value.  The search limit ranges from
+	// zero to five hundred (restricted by Linkedin page size).
+        function setSearchLimit() {
+		searchLimit = document.getElementById('limit').value;
+		if (searchLimit < 1)
+			return;
+		if (searchLimit > 500) {
+			document.getElementById('notifications').innerHTML = "LinkedIn searches is limited to 500.";
+		}
+
+		clearMap();
+		IN.API.Connections("me")
+                        .fields("positions:(company)")
+			.params({"count":searchLimit})
+                        .result(searchForCompanyByConnection)
+                        .error(displayConnectionErrors);                
+	}
+
+	// Clears the map of any markers
+	function clearMap() {
+		for (var i = 0; i < mapMarkers.length; i++) {
+			mapMarkers[i].setMap(null);
+		}
 	}
 </script>
 
@@ -136,8 +170,12 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 <div id="notifications">Please click on the LinkedIn button below to log in:</div>
 <script type="in/Login">
 </script>
-
 <div id="profiles"></div>
+<div id="panel">
+	<input id="limit" type="textbox" value=50>
+	<input type="button" value="Search Limit" onclick="setSearchLimit()">
+	<input type="button" value="Clear" onclick="clearMap()">
+</div>
 <div id="map-canvas"></div>
 </body>
 </html>
