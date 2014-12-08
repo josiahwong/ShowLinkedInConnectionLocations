@@ -1,0 +1,64 @@
+<html>
+<head>
+<script type="text/javascript" src="http://platform.linkedin.com/in.js">
+	api_key:77evzvvs49kyz3
+	onLoad: onLinkedInLoad
+	scope: r_basicprofile r_network
+	authorize: true
+</script>
+
+<script type="text/javascript">
+	function onLinkedInLoad() {
+		IN.Event.on(IN, "auth", onLinkedInAuth);
+	}
+
+	function onLinkedInAuth() {
+		IN.API.Profile("me").result(displayProfiles);
+		IN.API.Connections("me")
+			.fields("positions:(company)")
+			.result(searchForCompanyByConnection)
+			.error(displayConnectionErrors);
+	}
+
+	function displayProfiles(profiles) {
+		var profilesDiv = document.getElementById("profiles");
+		member = profiles.values[0];
+		profilesDiv.innerHTML = "<p id=\"" + member.id + "\">Hello " + member.firstName + "</p>";
+	}
+
+	function searchForCompanyByConnection(connections) {
+		var companyIDs = [];
+		var members = connections.values;
+		for (var member in members) {
+			var count = members[member].positions._total;
+			if (count > 0) {
+				companyIDs[companyIDs.length] = members[member].positions.values[0].company.id;
+			} 
+		}     
+		searchForCompanyLocations(companyIDs);
+	}
+
+	function searchForCompanyLocations(companyIDs) {
+		var companyIDString = companyIDs.toString();
+		var searchString = "companies::(" + companyIDString + "):(locations)";
+		IN.API.Raw(searchString).result(displayCompanyLocations);
+	}
+
+	function displayCompanyLocations(locations) {
+
+	}
+
+	function displayConnectionErrors(error) {
+		var connectionsDiv = document.getElementById("connections");
+	}
+</script>
+
+</head>
+<body>
+<script type="in/Login">
+</script>
+
+<div id="profiles"></div>
+<div id="connections"></div>
+</body>
+</html>
