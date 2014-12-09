@@ -151,17 +151,23 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 	// Builds an address array and calls Geocoder to map.
 	function displayCompanyLocations(companyLocations) {
 		for (var companyLocation in companyLocations.values) {
-			var locationValues = companyLocations.values[companyLocation].locations;
-			if (locationValues == null || locationValues._total < 1) {
-				continue;
-			}
+			try {
+				var locationValues = companyLocations.values[companyLocation].locations;
+				if (locationValues == null || locationValues._total < 1) {
+					continue;
+				}
 
-			var address = locationValues.values[0].address;
-			if (address.street1 == null && address.city == null && address.state == null) {
-				continue;
+				var address = locationValues.values[0].address;
+				// Some companies do not have an address set. I.e. test account
+				if (address.street1 == null && address.city == null && address.state == null) {
+					continue;
+				}	
+				var fullAddress = address.street1 + " " + address.city + " " + address.state;
+				addressArray.push(fullAddress);
 			}
-			var fullAddress = address.street1 + " " + address.city + " " + address.state;
-			addressArray.push(fullAddress);
+			catch(err) {
+				document.getElementById('notifications').innerHTML = "Unable to retrieve one of the addresses. Error: " + err;
+			}
 		}
 		mapAddressArrayToGoogle();
 	}
@@ -176,9 +182,11 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
         function setSearchLimit() {
 		searchLimit = document.getElementById('limit').value;
 		if (searchLimit < 1)
+			document.getElementById('notifications').innerHTML = "LinkedIn searches have to be greater zero.";
 			return;
 		if (searchLimit > 500) {
-			document.getElementById('notifications').innerHTML = "LinkedIn searches is limited to 500.";
+			document.getElementById('notifications').innerHTML = "LinkedIn searches are limited to 500.";
+			return;
 		}
 
 		clearMap();
