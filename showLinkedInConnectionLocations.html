@@ -2,7 +2,8 @@
 <head>
 <style>
 	html, body, #map-canvas {
-		height: 100%;
+		height: 600px;
+		width: 800px;
 		margin: 0px;
 		padding: 0px
 	}
@@ -29,8 +30,16 @@ api_key:77evzvvs49kyz3
 	var map;
 	// Limits the connection search to this value.
 	var searchLimit = 50;
+	// Delay between geocode requests
+	var geocodeDelay = 100;
 	// Holds the map markers after it has been placed.
 	var mapMarkers = [];
+	// Holds the current map boundaries
+	var mapBounds;
+	// Holds the generated company address from Linkedin
+	var addressArray = [];
+	// Holds the current location that we are processing in the addressArray
+	var nextAddress = 0;
 
 	// Creates the Geocoder object which takes in an address and 
 	//	translates it to coordinates.
@@ -43,11 +52,12 @@ api_key:77evzvvs49kyz3
 			center: latlng
 		}
 		map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+		mapBounds = new google.maps.LatLngBounds();
 	}
 
 	// Takes in a best estimate of an address, and puts a pin on
 	// the Google map onscreen.
-	function mapAddressToGoogle(address) {
+	function mapAddressToGoogle(address, next) {
 		geocoder.geocode( { 'address': address}, function(results, status) {
 			if (status == google.maps.GeocoderStatus.OK) {
 				map.setCenter(results[0].geometry.location);
@@ -56,11 +66,30 @@ api_key:77evzvvs49kyz3
 					position: results[0].geometry.location
 				});
 				mapMarkers.push(marker);
+				mapBounds.extend(marker.position);
+				document.getElementById('messages').innerHTML += "<p>" + address + "</p>";
 			} else {
-				document.getElementById('notifications').innerHTML = "Unable to map the given address: " + address + "  Error: " + status;
+				if (status == google.maps.GeocoderStatus.OVER_QUERY_LIMIT) {
+					nextAddress--;
+					geocodeDelay++;
+				} else {
+					document.getElementById('notifications').innerHTML = "Unable to map the given address: " + address + "  Error: " + status;
+				}
 			}
+			next();
 		});
-}
+	}
+
+	// Calls mapAddressToGoogle on a timer to prevent OVER_QUERY_LIMIT errors
+	// Credit where credit is due: http://acleach.me.uk/gmaps/v3/plotaddresses.htm
+	function mapAddressArrayToGoogle() {
+		if (nextAddress < addressArray.length) {
+			setTimeout('mapAddressToGoogle("' + addressArray[nextAddress] + '", mapAddressArrayToGoogle)', geocodeDelay);
+			nextAddress++;
+		} else {
+			map.fitBounds(mapBounds);
+		}
+	}
 
 google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);	
 </script>
@@ -119,7 +148,7 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 			.error(displayConnectionErrors);
 	}
 
-	// Builds an address string and sends to Geocoder to map.
+	// Builds an address array and calls Geocoder to map.
 	function displayCompanyLocations(companyLocations) {
 		for (var companyLocation in companyLocations.values) {
 			var locationValues = companyLocations.values[companyLocation].locations;
@@ -128,10 +157,13 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 			}
 
 			var address = locationValues.values[0].address;
+			if (address.street1 == null && address.city == null && address.state == null) {
+				continue;
+			}
 			var fullAddress = address.street1 + " " + address.city + " " + address.state;
-			
-			mapAddressToGoogle(fullAddress);
+			addressArray.push(fullAddress);
 		}
+		mapAddressArrayToGoogle();
 	}
 
         function displayConnectionErrors(error) {
@@ -157,8 +189,10 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
                         .error(displayConnectionErrors);                
 	}
 
-	// Clears the map of any markers
+	// Clears the map of any markers, removes error messages, and the list of addresses
 	function clearMap() {
+		document.getElementById('notifications').innerHTML = "";
+		document.getElementById('messages').innerHTML = "";
 		for (var i = 0; i < mapMarkers.length; i++) {
 			mapMarkers[i].setMap(null);
 		}
@@ -177,5 +211,6 @@ google.maps.event.addDomListener(window, 'load', initializeGoogleMaps);
 	<input type="button" value="Clear" onclick="clearMap()">
 </div>
 <div id="map-canvas"></div>
+<div id="messages"></div>
 </body>
 </html>
